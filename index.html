@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Focus Isle 專注小島 - 像素風番茄鐘</title>
+  <style>
+    :root {
+      --bg-color: #1a1c23;
+      --card-bg: #282b36;
+      --text-main: #f8f8f2;
+      --text-muted: #6272a4;
+      --accent-green: #50fa7b;
+      --accent-orange: #ffb86c;
+      --accent-red: #ff5555;
+      --accent-cyan: #8be9fd;
+      --accent-yellow: #f1fa8c;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: 'Courier New', Courier, monospace, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 500px;
+      background: var(--card-bg);
+      border: 4px solid #44475a;
+      border-radius: 12px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header-bar {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      border-bottom: 2px dashed #44475a;
+      padding-bottom: 12px;
+    }
+
+    .stat-badge {
+      background: #1e1f29;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #44475a;
+      display: flex;
+      gap: 8px;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      width: 320px;
+      height: 240px;
+      background: #111217;
+      border: 3px solid #6272a4;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+    }
+
+    .timer-display {
+      font-size: 54px;
+      font-weight: bold;
+      letter-spacing: 4px;
+      color: var(--accent-green);
+      text-shadow: 0 0 10px rgba(80, 250, 123, 0.4);
+    }
+
+    .mode-label {
+      font-size: 16px;
+      font-weight: bold;
+      color: var(--accent-orange);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px 8px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: bold;
+      border: 3px solid #000;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #000;
+      transition: all 0.1s ease;
+    }
+
+    button:active {
+      transform: translateY(4px);
+      box-shadow: 0 0 0 #000;
+    }
+
+    .btn-start { background: var(--accent-green); color: #111; }
+    .btn-pause { background: var(--accent-yellow); color: #111; }
+    .btn-reset { background: var(--accent-red); color: #fff; }
+    .btn-shop  { background: var(--accent-cyan); color: #111; }
+
+    .test-mode-toggle {
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* 商店 Modal */
+    .modal {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .modal-content {
+      background: var(--card-bg);
+      border: 4px solid var(--accent-cyan);
+      border-radius: 8px;
+      padding: 20px;
+      width: 90%;
+      max-width: 380px;
+      text-align: center;
+    }
+
+    .shop-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #1e1f29;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 6px;
+      border: 1px solid #44475a;
+    }
+
+    .shop-item button {
+      flex: 0 0 90px;
+      padding: 6px 0;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header-bar">
+      <div class="stat-badge">
+        <span>🪙 金幣:</span>
+        <span id="coinCount" style="color: var(--accent-yellow);">0</span>
+      </div>
+      <div class="stat-badge">
+        <span>🍅 番茄數:</span>
+        <span id="pomoCount" style="color: var(--accent-red);">0</span>
+      </div>
+    </div>
+
+    <div class="canvas-wrapper">
+      <canvas id="gameCanvas" width="320" height="240"></canvas>
+    </div>
+
+    <div class="mode-label" id="modeLabel">專注時段 (FOCUS)</div>
+    <div class="timer-display" id="timerDisplay">25:00</div>
+
+    <div class="controls">
+      <button class="btn-start" id="startBtn">開始</button>
+      <button class="btn-pause" id="pauseBtn" style="display: none;">暫停</button>
+      <button class="btn-reset" id="resetBtn">放棄</button>
+      <button class="btn-shop" id="shopBtn">小島商店</button>
+    </div>
+
+    <div class="test-mode-toggle" id="toggleFastMode">切換為示範快轉模式 (10秒)</div>
+  </div>
+
+  <!-- 商店彈窗 -->
+  <div class="modal" id="shopModal">
+    <div class="modal-content">
+      <h3 style="color: var(--accent-cyan); margin-bottom: 12px;">🏝️ 小島裝飾圖鑑</h3>
+      <div class="shop-item">
+        <div style="text-align: left;">
+          <div>🌸 櫻花樹造型</div>
+          <small style="color: var(--text-muted);">花瓣飄落特效</small>
+        </div>
+        <button id="buySakuraBtn">50 幣解鎖</button>
+      </div>
+      <div class="shop-item">
+        <div style="text-align: left;">
+          <div>🌌 星空黑夜模式</div>
+          <small style="color: var(--text-muted);">滿天繁星特效</small>
+        </div>
+        <button id="buyNightBtn">100 幣解鎖</button>
+      </div>
+      <button id="closeShopBtn" style="background: #44475a; color: #fff; margin-top: 10px;">關閉</button>
+    </div>
+  </div>
+
+  <script>
+    /* ========================================================
+       音效系統 (8-bit Web Audio API 原生合成)
+       ======================================================== */
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playTone(freq, type = 'square', duration = 0.1, delay = 0) {
+      setTimeout(() => {
+        try {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + duration);
+        } catch (e) { console.error(e); }
+      }, delay * 1000);
+    }
+
+    const Sound = {
+      click: () => playTone(600, 'square', 0.05),
+      win: () => {
+        playTone(440, 'triangle', 0.1, 0);
+        playTone(554.37, 'triangle', 0.1, 0.1);
+        playTone(659.25, 'triangle', 0.2, 0.2);
+        playTone(880, 'triangle', 0.35, 0.3);
+      },
+      fail: () => {
+        playTone(300, 'sawtooth', 0.15, 0);
+        playTone(200, 'sawtooth', 0.25, 0.15);
+      }
+    };
+
+    /* ========================================================
+       遊戲狀態與變數管理
+       ======================================================== */
+    let isFastMode = false;
+    let focusDuration = 25 * 60;
+    let breakDuration = 5 * 60;
+
+    let timeLeft = focusDuration;
+    let timerInterval = null;
+    let isRunning = false;
+    let currentMode = 'focus'; // 'focus' | 'break'
+    let islandState = 'normal'; // 'normal' | 'failed'
+
+    let coins = parseInt(localStorage.getItem('fi_coins') || '0', 10);
+    let pomos = parseInt(localStorage.getItem('fi_pomos') || '0', 10);
+    let unlocks = JSON.parse(localStorage.getItem('fi_unlocks') || '{"sakura": false, "night": false}');
+    let equipped = JSON.parse(localStorage.getItem('fi_equipped') || '{"sakura": false, "night": false}');
+
+    /* ========================================================
+       畫布 Canvas 像素小島繪製引擎
+       ======================================================== */
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let tick = 0;
+
+    function drawPixelRect(x, y, w, h, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(Math.floor(x), Math.floor(y), w, h);
+    }
+
+    function renderScene() {
+      tick += 0.05;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const isNight = equipped.night;
+      const isFailed = (islandState === 'failed');
+
+      // 1. 天空背景繪製
+      if (isFailed) {
+        ctx.fillStyle = '#1c1f24'; // 暴風雨暗天
+      } else if (isNight) {
+        ctx.fillStyle = '#08081a'; // 繁星夜空
+      } else {
+        ctx.fillStyle = '#3a506b'; // 晨曦清澈藍天
+      }
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 星空與雨滴動畫
+      if (isNight && !isFailed) {
+        for (let i = 0; i < 25; i++) {
+          const sx = (i * 37) % canvas.width;
+          const sy = (i * 23) % 120;
+          const blink = Math.sin(tick + i) > 0.5 ? '#ffffff' : '#6272a4';
+          drawPixelRect(sx, sy, 2, 2, blink);
+        }
+      }
+
+      if (isFailed) {
+        // 雨絲效果
+        for (let i = 0; i < 30; i++) {
+          const rx = (i * 19 + tick * 50) % canvas.width;
+          const ry = (i * 29 + tick * 120) % canvas.height;
+          drawPixelRect(rx, ry, 1, 6, '#4e6172');
+        }
+      }
+
+      // 2. 懸浮島浮動動畫 (上下呼吸浮動 4px)
+      const floatY = Math.sin(tick * 1.5) * 4;
+      const islandX = 90;
+      const islandY = 130 + floatY;
+
+      // 浮空島泥土層 (階梯狀像素結構)
+      drawPixelRect(islandX + 10, islandY + 25, 120, 20, '#5c4033');
+      drawPixelRect(islandX + 25, islandY + 45, 90, 18, '#3d2b1f');
+      drawPixelRect(islandX + 45, islandY + 63, 50, 12, '#2b1e17');
+
+      // 草地表面
+      const grassColor = isFailed ? '#40432f' : '#4caf50';
+      const grassShadow = isFailed ? '#2c2e1f' : '#2e7d32';
+      drawPixelRect(islandX, islandY + 15, 140, 12, grassColor);
+      drawPixelRect(islandX, islandY + 27, 140, 4, grassShadow);
+
+      // 3. 專注進度與植被生長階段
+      const totalTime = (currentMode === 'focus') ? focusDuration : breakDuration;
+      const progress = 1 - (timeLeft / totalTime);
+
+      const treeX = islandX + 60;
+      const treeY = islandY + 15;
+
+      if (isFailed) {
+        // 枯枝枯木
+        drawPixelRect(treeX - 2, treeY - 25, 4, 25, '#3a2e2b');
+        drawPixelRect(treeX - 8, treeY - 20, 6, 3, '#3a2e2b');
+        drawPixelRect(treeX + 2, treeY - 15, 8, 3, '#3a2e2b');
+      } else {
+        // 樹幹
+        drawPixelRect(treeX - 4, treeY - 25, 8, 25, '#8d6e63');
+
+        // 依進度展開的樹冠
+        if (progress > 0.1) {
+          const foliageColor = equipped.sakura ? '#ff79c6' : '#66bb6a';
+          const shadowColor = equipped.sakura ? '#bd93f9' : '#388e3c';
+
+          const radius = Math.min(26, 10 + progress * 16);
+          // 圓形階梯像素樹冠
+          drawPixelRect(treeX - radius, treeY - 25 - radius, radius * 2, radius * 2, foliageColor);
+          drawPixelRect(treeX - radius + 4, treeY - 25 + 2, radius * 2 - 8, 6, shadowColor);
+
+          // 專注 75% 以上結出金色果實 / 飄落櫻花
+          if (progress > 0.75) {
+            const fruitColor = equipped.sakura ? '#ffffff' : '#ffd700';
+            drawPixelRect(treeX - 12, treeY - 35, 4, 4, fruitColor);
+            drawPixelRect(treeX + 8, treeY - 30, 4, 4, fruitColor);
+            drawPixelRect(treeX - 2, treeY - 45, 4, 4, fruitColor);
+          }
+        }
+
+        // 專注 100% 冒險夥伴小貓出現
+        if (progress >= 1 || currentMode === 'break') {
+          const petX = islandX + 25;
+          const petY = islandY + 5;
+          drawPixelRect(petX, petY, 12, 10, '#ffffff'); // 身體
+          drawPixelRect(petX + 2, petY - 3, 3, 3, '#ffffff'); // 左耳
+          drawPixelRect(petX + 7, petY - 3, 3, 3, '#ffffff'); // 右耳
+          drawPixelRect(petX + 10, petY + 2, 2, 2, '#ff5555'); // 臉頰
+        }
+      }
+
+      requestAnimationFrame(renderScene);
+    }
+
+    /* ========================================================
+       計時器邏輯與控制器
+       ======================================================== */
+    const timerDisplay = document.getElementById('timerDisplay');
+    const modeLabel = document.getElementById('modeLabel');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const coinCount = document.getElementById('coinCount');
+    const pomoCount = document.getElementById('pomoCount');
+
+    function updateStatsUI() {
+      coinCount.innerText = coins;
+      pomoCount.innerText = pomos;
+      localStorage.setItem('fi_coins', coins);
+      localStorage.setItem('fi_pomos', pomos);
+    }
+
+    function formatTime(sec) {
+      const m = Math.floor(sec / 60).toString().padStart(2, '0');
+      const s = (sec % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function switchMode(newMode) {
+      currentMode = newMode;
+      islandState = 'normal';
+      timeLeft = (currentMode === 'focus') ? focusDuration : breakDuration;
+      timerDisplay.innerText = formatTime(timeLeft);
+
+      if (currentMode === 'focus') {
+        modeLabel.innerText = '專注時段 (FOCUS)';
+        modeLabel.style.color = 'var(--accent-orange)';
+        timerDisplay.style.color = 'var(--accent-green)';
+      } else {
+        modeLabel.innerText = '放鬆休息 (BREAK)';
+        modeLabel.style.color = 'var(--accent-cyan)';
+        timerDisplay.style.color = 'var(--accent-cyan)';
+      }
+    }
+
+    function startTimer() {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      Sound.click();
+      isRunning = true;
+      islandState = 'normal';
+      startBtn.style.display = 'none';
+      pauseBtn.style.display = 'inline-block';
+
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        timerDisplay.innerText = formatTime(timeLeft);
+
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          isRunning = false;
+          startBtn.style.display = 'inline-block';
+          pauseBtn.style.display = 'none';
+
+          if (currentMode === 'focus') {
+            Sound.win();
+            coins += 25;
+            pomos += 1;
+            updateStatsUI();
+            alert('🎉 專注完成！小島收穫了 25 枚金幣！進入放鬆休息階段。');
+            switchMode('break');
+          } else {
+            Sound.click();
+            alert('🔔 休息結束！準備開始下一個專注週期。');
+            switchMode('focus');
+          }
+        }
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      Sound.click();
+      clearInterval(timerInterval);
+      isRunning = false;
+      startBtn.style.display = 'inline-block';
+      pauseBtn.style.display = 'none';
+    }
+
+    function resetTimer() {
+      if (isRunning && currentMode === 'focus') {
+        Sound.fail();
+        islandState = 'failed';
+        clearInterval(timerInterval);
+        isRunning = false;
+        startBtn.style.display = 'inline-block';
+        pauseBtn.style.display = 'none';
+        timeLeft = focusDuration;
+        timerDisplay.innerText = formatTime(timeLeft);
+        setTimeout(() => {
+          alert('🌧️ 放棄專注！小島遭遇暴風雨。調整呼吸，隨時可以重新開始！');
+        }, 100);
+      } else {
+        Sound.click();
+        clearInterval(timerInterval);
+        isRunning = false;
+        startBtn.style.display = 'inline-block';
+        pauseBtn.style.display = 'none';
+        switchMode('focus');
+      }
+    }
+
+    /* 示範快轉模式 (方便展示/錄影) */
+    document.getElementById('toggleFastMode').addEventListener('click', () => {
+      isFastMode = !isFastMode;
+      focusDuration = isFastMode ? 10 : 25 * 60;
+      breakDuration = isFastMode ? 5 : 5 * 60;
+      document.getElementById('toggleFastMode').innerText = isFastMode
+        ? '⚡ 目前為示範快轉模式 (點擊恢復25分)'
+        : '切換為示範快轉模式 (10秒)';
+      resetTimer();
+    });
+
+    /* ========================================================
+       小島圖鑑商店邏輯
+       ======================================================== */
+    const shopModal = document.getElementById('shopModal');
+    const buySakuraBtn = document.getElementById('buySakuraBtn');
+    const buyNightBtn = document.getElementById('buyNightBtn');
+
+    function refreshShopUI() {
+      // 櫻花樹按鈕狀態
+      if (unlocks.sakura) {
+        buySakuraBtn.innerText = equipped.sakura ? '已裝飾' : '使用';
+        buySakuraBtn.style.background = equipped.sakura ? '#bd93f9' : '#50fa7b';
+      } else {
+        buySakuraBtn.innerText = '50 幣解鎖';
+      }
+
+      // 星空夜空按鈕狀態
+      if (unlocks.night) {
+        buyNightBtn.innerText = equipped.night ? '已裝飾' : '使用';
+        buyNightBtn.style.background = equipped.night ? '#bd93f9' : '#50fa7b';
+      } else {
+        buyNightBtn.innerText = '100 幣解鎖';
+      }
+    }
+
+    document.getElementById('shopBtn').addEventListener('click', () => {
+      Sound.click();
+      refreshShopUI();
+      shopModal.style.display = 'flex';
+    });
+
+    document.getElementById('closeShopBtn').addEventListener('click', () => {
+      Sound.click();
+      shopModal.style.display = 'none';
+    });
+
+    buySakuraBtn.addEventListener('click', () => {
+      if (!unlocks.sakura) {
+        if (coins >= 50) {
+          coins -= 50;
+          unlocks.sakura = true;
+          equipped.sakura = true;
+          Sound.win();
+        } else {
+          Sound.fail();
+          alert('金幣不足！多專注幾輪來賺取金幣吧！');
+        }
+      } else {
+        Sound.click();
+        equipped.sakura = !equipped.sakura;
+      }
+      updateStatsUI();
+      localStorage.setItem('fi_unlocks', JSON.stringify(unlocks));
+      localStorage.setItem('fi_equipped', JSON.stringify(equipped));
+      refreshShopUI();
+    });
+
+    buyNightBtn.addEventListener('click', () => {
+      if (!unlocks.night) {
+        if (coins >= 100) {
+          coins -= 100;
+          unlocks.night = true;
+          equipped.night = true;
+          Sound.win();
+        } else {
+          Sound.fail();
+          alert('金幣不足！多專注幾輪來賺取金幣吧！');
+        }
+      } else {
+        Sound.click();
+        equipped.night = !equipped.night;
+      }
+      updateStatsUI();
+      localStorage.setItem('fi_unlocks', JSON.stringify(unlocks));
+      localStorage.setItem('fi_equipped', JSON.stringify(equipped));
+      refreshShopUI();
+    });
+
+    // 綁定事件監聽
+    startBtn.addEventListener('click', startTimer);
+    pauseBtn.addEventListener('click', pauseTimer);
+    resetBtn.addEventListener('click', resetTimer);
+
+    // 初始載入
+    updateStatsUI();
+    renderScene();
+  </script>
+</body>
+</html>
